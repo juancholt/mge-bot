@@ -11,7 +11,11 @@ import {
 } from 'necord';
 import { GovernorService } from './service';
 import { Governor } from 'src/entity/Governor';
-import { ButtonInteraction, ChatInputCommandInteraction } from 'discord.js';
+import {
+  ButtonInteraction,
+  ButtonStyle,
+  ChatInputCommandInteraction,
+} from 'discord.js';
 
 export class CreateGovernorDto {
   @StringOption({
@@ -57,8 +61,60 @@ export class GovernorCommands {
     @Context() [interaction]: SlashCommandContext,
     @Options() { governorId, governorName }: CreateGovernorDto,
   ) {
+    const discordGovernor = await this.governorService.findGovernorByDiscordId(
+      interaction.user.id,
+    );
+    const rokGovernor =
+      await this.governorService.findGovernorByGovernorId(governorId);
+    if (discordGovernor) {
+      return await interaction.reply({
+        embeds: [
+          {
+            title: `Governor Linked already`,
+            description:
+              'Your account is already linked to a governor.\nYou can see your info using `my-info`',
+            color: 0xff0000,
+          },
+        ],
+      });
+    }
+    if (rokGovernor) {
+      if (rokGovernor.discordId)
+        return await interaction.reply({
+          embeds: [
+            {
+              title: `GovernorID already taken`,
+              description: 'This governor id already taken.',
+              color: 0xff0000,
+            },
+          ],
+        });
+      return interaction.reply({
+        ephemeral: true,
+        content: `Governor id already exists. Do you want to link it to your account?`,
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 2,
+                label: 'Link it',
+                style: ButtonStyle.Primary,
+                custom_id: `link/${governorId}`,
+              },
+              {
+                type: 2,
+                label: 'Cancel',
+                style: ButtonStyle.Secondary,
+                custom_id: `cancel-governor-create`,
+              },
+            ],
+          },
+        ],
+      });
+    }
     await this.createGovernorWith({ governorId, governorName, interaction });
-    await interaction.reply({
+    return await interaction.reply({
       embeds: [
         {
           title: `Governor created successfully`,
@@ -67,6 +123,41 @@ export class GovernorCommands {
       ],
     });
   }
+  @Button('link/:governorId')
+  public async onClickLink(
+    @Context() [interaction]: ButtonContext,
+    @ComponentParam('governorId') governorId: string,
+  ) {
+    const unclaimedGovernor =
+      await this.governorService.findGovernorByGovernorId(governorId);
+    unclaimedGovernor.discordId = interaction.user.id;
+    await this.governorService.updateGovernor(unclaimedGovernor);
+    await interaction.update({
+      content: '',
+      components: [],
+      embeds: [
+        {
+          title: `Governor created successfully`,
+          color: 0x00ff00,
+        },
+      ],
+    });
+  }
+
+  @Button('cancel-governor-create')
+  public async onCancel(@Context() [interaction]: ButtonContext) {
+    await interaction.update({
+      content: '',
+      components: [],
+      embeds: [
+        {
+          title: `Governor not created`,
+          color: 0xffbf00,
+        },
+      ],
+    });
+  }
+
   @Button('create/:governorId/:governorName')
   public async onClickCreate(
     @Context() [interaction]: ButtonContext,

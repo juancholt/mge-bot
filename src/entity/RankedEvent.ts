@@ -10,7 +10,7 @@ import { Bid } from './Bid';
 const RankedEventStatuses = ['active', 'finished'] as const;
 export type RankedEventStatus = (typeof RankedEventStatuses)[number];
 
-const RankedEventTypes = [
+export const RankedEventTypes = [
   'Cavalry MGE',
   'Infantry MGE',
   'Archers MGE',
@@ -41,7 +41,7 @@ export class RankedEvent extends BaseEntity {
     type: 'enum',
     enum: RankedEventTypes,
   })
-  type: RankedEventStatus;
+  type: RankedEventType;
 
   @OneToMany(() => Bid, (bid) => bid.rankedEvent)
   bids: Bid[];
