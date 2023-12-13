@@ -1,0 +1,1 @@
+export const BID_REPOSITORY = 'BID_REPOSITORY';

@@ -15,7 +15,10 @@ export class RankedEventService {
   }
 
   async getActiveRankedEvent() {
-    return await this.rankedEventRepository.findOneBy({ status: 'active' });
+    return await this.rankedEventRepository.findOne({
+      where: { status: 'active' },
+      relations: ['bids', 'bids.governor'],
+    });
   }
 
   async activateEvent(id: number) {

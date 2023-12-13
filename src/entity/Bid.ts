@@ -17,7 +17,7 @@ export class Bid extends BaseEntity {
   id: number;
 
   @Column('bigint')
-  amount: string;
+  amount: number;
 
   @Column()
   status: 'pending' | 'accepted' | 'rejected';

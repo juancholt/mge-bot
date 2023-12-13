@@ -17,6 +17,8 @@ import {
   RankedEventTypes,
 } from 'src/entity/RankedEvent';
 import { RankedEventService } from './service';
+import { Bid } from 'src/entity/Bid';
+import { BidService } from 'src/bid/service';
 
 export class CreateRankedEventDto {
   @StringOption({
@@ -58,7 +60,10 @@ Object.entries(TypeMap).forEach(
 
 @Injectable()
 export class RankedEventCommands {
-  constructor(private readonly rankedEventService: RankedEventService) {}
+  constructor(
+    private readonly rankedEventService: RankedEventService,
+    private readonly bidService: BidService,
+  ) {}
 
   async createRankedEvent({
     minimumScore,
@@ -79,7 +84,7 @@ export class RankedEventCommands {
     name: 'create-ranked-event',
     description: 'Creates a new ranked event',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896'],
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
   })
   public async onCreate(
     @Context() [interaction]: SlashCommandContext,
@@ -133,7 +138,7 @@ export class RankedEventCommands {
               { name: 'Places', value: `${places}` },
               {
                 name: 'Minimum Score',
-                value: `${minimumScore.toLocaleString()}`,
+                value: `${minimumScore.toLocaleString('de-DE')}`,
               },
             ],
             color: 0x00ff00,
@@ -162,6 +167,13 @@ export class RankedEventCommands {
     @ComponentParam('places') rankedEventPlaces: number,
     @ComponentParam('score') rankedEventMinimumScore: number,
   ) {
+    const currentActiveEvent =
+      await this.rankedEventService.getActiveRankedEvent();
+    const acceptedBids = await this.terminateBids(
+      currentActiveEvent.bids,
+      currentActiveEvent.places,
+    );
+    await this.rankedEventService.terminateRankedEvent(currentActiveEvent);
     await this.createRankedEvent({
       type: TypeMap[type],
       places: rankedEventPlaces,
@@ -177,20 +189,41 @@ export class RankedEventCommands {
             { name: 'Places', value: `${rankedEventPlaces}` },
             {
               name: 'Minimum Score',
-              value: `${rankedEventMinimumScore.toLocaleString()}`,
+              value: `${rankedEventMinimumScore.toLocaleString('de-DE')}`,
             },
           ],
           color: 0x00ff00,
         },
+        {
+          title: `Previous ${currentActiveEvent.type} closed`,
+          color: 0xffbf00,
+          fields: acceptedBids.map((bid) => ({
+            name: bid.governor.governorName,
+            value: Number(bid.amount).toLocaleString('de-DE'),
+            inline: true,
+          })),
+        },
       ],
     });
   }
-
+  async terminateBids(bids: Bid[], places: number) {
+    bids.sort((a, b) => b.amount - a.amount);
+    const updatedBids = bids.map(async (bid, index) => {
+      console.log({ bid, places, index });
+      if (index < places) {
+        return await this.bidService.closeBid(bid, true);
+      } else {
+        return await this.bidService.closeBid(bid, false);
+      }
+    });
+    await Promise.all(updatedBids);
+    return bids.slice(0, places);
+  }
   @SlashCommand({
     name: 'close-active-event',
     description: 'Close current event to stop receiving bids',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896'],
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
   })
   public async onCloseEvent(@Context() [interaction]: SlashCommandContext) {
     const currentActiveEvent =
@@ -209,27 +242,37 @@ export class RankedEventCommands {
       });
       return;
     }
+    const acceptedBids = await this.terminateBids(
+      currentActiveEvent.bids,
+      currentActiveEvent.places,
+    );
     await this.rankedEventService.terminateRankedEvent(currentActiveEvent);
     return interaction.reply({
       embeds: [
         {
           title: `Active ${currentActiveEvent.type} is now closed`,
           color: 0xffbf00,
-          fields: [],
+          description: `Event winners:`,
+          fields: acceptedBids.map((bid, idx) => ({
+            name: `${idx + 1} - ${bid.governor.governorName}`,
+            value: '',
+          })),
         },
       ],
-      ephemeral: true,
     });
   }
   @SlashCommand({
-    name: 'current-active-event',
+    name: 'active-event-info',
     description: 'Gets current event to information',
-    guilds: ['1111240948446416896'],
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
   })
   public async onGetInfo(@Context() [interaction]: SlashCommandContext) {
     const currentActiveEvent =
       await this.rankedEventService.getActiveRankedEvent();
-
+    const { places, bids } = currentActiveEvent;
+    const topBids = bids
+      .sort((a, b) => Number(b.amount) - Number(a.amount))
+      .filter((_bid, idx) => idx < places);
     if (!currentActiveEvent) {
       await interaction.reply({
         embeds: [
@@ -250,14 +293,29 @@ export class RankedEventCommands {
           color: 0xffbf00,
           fields: [
             {
-              value: currentActiveEvent.minimumScore.toLocaleString(),
+              value: currentActiveEvent.minimumScore.toLocaleString('de-DE'),
               name: 'Minimum Score',
             },
             {
               value: `${currentActiveEvent.places}`,
               name: 'Places',
             },
+
+            {
+              value: `${currentActiveEvent.bids.length}`,
+              name: 'Current bids',
+            },
           ],
+        },
+        {
+          title: `Rankings ${currentActiveEvent.type}`,
+          color: 0xffbf00,
+          fields: topBids.map((bid, idx) => ({
+            value: `${idx + 1} - ${bid.governor.governorName} - ${Number(
+              bid.amount,
+            ).toLocaleString()}`,
+            name: '',
+          })),
         },
       ],
       ephemeral: true,

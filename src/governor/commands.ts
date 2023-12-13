@@ -49,7 +49,7 @@ export class GovernorCommands {
     newGovernor.discordId = interaction.user.id;
     newGovernor.governorId = governorId;
     newGovernor.governorName = governorName;
-    newGovernor.points = '0';
+    newGovernor.points = 0;
     await this.governorService.createGovernor(newGovernor);
   }
   @SlashCommand({
@@ -61,11 +61,11 @@ export class GovernorCommands {
     @Context() [interaction]: SlashCommandContext,
     @Options() { governorId, governorName }: CreateGovernorDto,
   ) {
-    const discordGovernor = await this.governorService.findGovernorByDiscordId(
+    const discordGovernor = await this.governorService.getGovernorByDiscordId(
       interaction.user.id,
     );
     const rokGovernor =
-      await this.governorService.findGovernorByGovernorId(governorId);
+      await this.governorService.getGovernorByGovernorId(governorId);
     if (discordGovernor) {
       return await interaction.reply({
         embeds: [
@@ -129,7 +129,7 @@ export class GovernorCommands {
     @ComponentParam('governorId') governorId: string,
   ) {
     const unclaimedGovernor =
-      await this.governorService.findGovernorByGovernorId(governorId);
+      await this.governorService.getGovernorByGovernorId(governorId);
     unclaimedGovernor.discordId = interaction.user.id;
     await this.governorService.updateGovernor(unclaimedGovernor);
     await interaction.update({
@@ -189,11 +189,11 @@ export class GovernorCommands {
     @Context() [interaction]: SlashCommandContext,
     @Options() { governorId, governorName }: CreateGovernorDto,
   ) {
-    const currentGovernor = await this.governorService.findGovernorByDiscordId(
+    const currentGovernor = await this.governorService.getGovernorByDiscordId(
       interaction.user.id,
     );
     const unclaimedGovernor =
-      await this.governorService.findGovernorByGovernorId(governorId);
+      await this.governorService.getGovernorByGovernorId(governorId);
     if (currentGovernor) {
       await interaction.reply({
         embeds: [
@@ -225,7 +225,7 @@ export class GovernorCommands {
       unclaimedGovernor.discordId = interaction.user.id;
       unclaimedGovernor.governorId = governorId;
       unclaimedGovernor.governorName = governorName;
-      unclaimedGovernor.points = '0';
+      unclaimedGovernor.points = 0;
       await this.governorService.updateGovernor(unclaimedGovernor);
       await interaction.reply({
         ephemeral: true,
@@ -260,14 +260,27 @@ export class GovernorCommands {
   @SlashCommand({
     name: 'my-info',
     description: 'Gets the profile info for your governor.',
-    guilds: ['1111240948446416896'],
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
   })
   public async onGetPointBalance(
     @Context() [interaction]: SlashCommandContext,
   ) {
-    const governor = await this.governorService.findGovernorByDiscordId(
+    const governor = await this.governorService.getGovernorByDiscordId(
       interaction.user.id,
     );
+    if (!governor) {
+      return await interaction.reply({
+        ephemeral: true,
+        embeds: [
+          {
+            title: `You don't have a governor linked to your discord account.\nUse \`/create-governor\` to create one.`,
+            color: 0xff0000,
+            fields: [],
+          },
+        ],
+      });
+    }
+    const points = parseInt(`${governor.points}`);
     await interaction.reply({
       ephemeral: true,
       embeds: [
@@ -276,7 +289,11 @@ export class GovernorCommands {
           color: 0xa632a8,
           fields: [
             { name: 'Governor Id', value: governor.governorId, inline: false },
-            { name: 'Point Balance', value: governor.points, inline: false },
+            {
+              name: 'Point Balance',
+              value: points.toLocaleString('de-DE'),
+              inline: true,
+            },
           ],
         },
       ],

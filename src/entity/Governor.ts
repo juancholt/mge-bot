@@ -22,7 +22,7 @@ export class Governor {
   governorName: string;
 
   @Column('bigint')
-  points: string;
+  points: number;
 
   @OneToMany(() => Bid, (bid) => bid.governor)
   bids: Bid[];

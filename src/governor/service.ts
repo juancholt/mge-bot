@@ -15,16 +15,16 @@ export class GovernorService {
   async updateGovernor(governor: Governor) {
     return await this.governorRepository.save(governor);
   }
-  async findGovernorByGovernorId(governorId: string) {
+  async getGovernorByGovernorId(governorId: string) {
     return await this.governorRepository.findOneBy({ governorId });
   }
-  async findGovernorByDiscordId(discordId: string) {
+  async getGovernorByDiscordId(discordId: string) {
     return await this.governorRepository.findOneBy({ discordId });
   }
   async resetPointsForAllGovernors() {
-    await this.governorRepository.update({}, { points: '0' });
+    await this.governorRepository.update({}, { points: 0 });
   }
-  async assignPointsToGovernor(governorId: string, points: string) {
+  async assignPointsToGovernor(governorId: string, points: number) {
     await this.governorRepository.update({ governorId }, { points });
   }
 }
