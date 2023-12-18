@@ -22,6 +22,12 @@ export class Bid extends BaseEntity {
   @Column()
   status: 'pending' | 'accepted' | 'rejected';
 
+  @Column({
+    type: 'smallint',
+    default: 15,
+  })
+  desiredRank: number;
+
   @ManyToOne(() => Governor, (governor) => governor.bids)
   @JoinColumn()
   governor: Governor;

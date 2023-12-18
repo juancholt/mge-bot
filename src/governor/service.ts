@@ -18,6 +18,12 @@ export class GovernorService {
   async getGovernorByGovernorId(governorId: string) {
     return await this.governorRepository.findOneBy({ governorId });
   }
+  async getGovernorByGovernorIdWithBids(governorId: string) {
+    return await this.governorRepository.findOne({
+      where: { governorId },
+      relations: ['bids', 'bids.rankedEvent', 'bids.governor'],
+    });
+  }
   async getGovernorByDiscordId(discordId: string) {
     return await this.governorRepository.findOneBy({ discordId });
   }

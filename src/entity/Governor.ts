@@ -8,8 +8,10 @@ export class Governor {
 
   @Column({
     unique: true,
+    nullable: true,
+    default: null,
   })
-  discordId: string;
+  discordId: string | null;
 
   @Column({
     unique: true,

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  AttachmentOption,
   Button,
   ButtonContext,
   ComponentParam,
@@ -12,10 +13,12 @@ import {
 import { GovernorService } from './service';
 import { Governor } from 'src/entity/Governor';
 import {
+  Attachment,
   ButtonInteraction,
   ButtonStyle,
   ChatInputCommandInteraction,
 } from 'discord.js';
+import { downloadAndSplitInRows } from 'src/utils/file-downloader';
 
 export class CreateGovernorDto {
   @StringOption({
@@ -32,7 +35,37 @@ export class CreateGovernorDto {
   })
   governorName: string;
 }
+export class ClaimGovernorDto {
+  @StringOption({
+    name: 'governor-id',
+    description: 'Your ingame governor id.',
+    required: true,
+  })
+  governorId: string;
 
+  @StringOption({
+    name: 'governor-name',
+    description: 'Your ingame governor name.',
+    required: false,
+  })
+  governorName: string;
+}
+export class RenameGovernorDto {
+  @StringOption({
+    name: 'governor-name',
+    description: 'Your ingame governor name.',
+    required: false,
+  })
+  governorName: string;
+}
+export class BatchSetPointsDto {
+  @AttachmentOption({
+    name: 'file',
+    description: 'CSV file containing governor ids and points',
+    required: true,
+  })
+  file: Attachment;
+}
 @Injectable()
 export class GovernorCommands {
   constructor(private readonly governorService: GovernorService) {}
@@ -117,7 +150,7 @@ export class GovernorCommands {
     return await interaction.reply({
       embeds: [
         {
-          title: `Governor created successfully`,
+          title: `Welcome ${governorName}`,
           color: 0x00ff00,
         },
       ],
@@ -137,7 +170,7 @@ export class GovernorCommands {
       components: [],
       embeds: [
         {
-          title: `Governor created successfully`,
+          title: `Welcome ${unclaimedGovernor.governorName}`,
           color: 0x00ff00,
         },
       ],
@@ -224,20 +257,25 @@ export class GovernorCommands {
       }
       unclaimedGovernor.discordId = interaction.user.id;
       unclaimedGovernor.governorId = governorId;
-      unclaimedGovernor.governorName = governorName;
-      unclaimedGovernor.points = 0;
+      if (governorName) unclaimedGovernor.governorName = governorName;
       await this.governorService.updateGovernor(unclaimedGovernor);
       await interaction.reply({
         ephemeral: true,
 
         embeds: [
           {
-            title: `Governor id successfully claimed`,
+            title: `Welcome ${unclaimedGovernor.governorName}`,
             color: 0x00ff00,
           },
         ],
       });
       return;
+    }
+    if (!governorName) {
+      return interaction.reply({
+        ephemeral: true,
+        content: `Governor id not found. To create a new one use \`/create-governor\``,
+      });
     }
     return interaction.reply({
       ephemeral: true,
@@ -295,6 +333,95 @@ export class GovernorCommands {
               inline: true,
             },
           ],
+        },
+      ],
+    });
+  }
+
+  @SlashCommand({
+    name: 'batch-set-points',
+    description: 'Creates/Updates points for a list of governors from a csv',
+    defaultMemberPermissions: 'Administrator',
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
+  })
+  public async onBatchSetPoints(
+    @Context() [interaction]: SlashCommandContext,
+    @Options() { file }: BatchSetPointsDto,
+  ) {
+    if (!file.contentType.includes('text/csv')) {
+      return interaction.reply({
+        ephemeral: true,
+        embeds: [
+          {
+            title: `Invalid file type`,
+            description: 'Only csv files are allowed',
+            color: 0xff0000,
+          },
+        ],
+      });
+    }
+    const rows = await downloadAndSplitInRows(file.url);
+    rows.forEach(async (row) => {
+      const [id, name, points] = row.split(',');
+      const existingGovernor =
+        await this.governorService.getGovernorByGovernorId(id);
+      if (existingGovernor) {
+        existingGovernor.points = Number(points);
+        existingGovernor.governorName = name;
+        this.governorService.updateGovernor(existingGovernor);
+      } else {
+        const newGovernor = new Governor();
+        newGovernor.governorId = id;
+        newGovernor.governorName = name;
+        newGovernor.points = Number(points);
+        this.governorService.createGovernor(newGovernor);
+      }
+    });
+
+    return interaction.reply({
+      ephemeral: true,
+      embeds: [
+        {
+          title: `Governors succesfully uploaded`,
+          description: `${rows.length} governors uploaded`,
+          color: 0x00ff00,
+        },
+      ],
+    });
+  }
+  @SlashCommand({
+    name: 'rename-governor',
+    description:
+      'Changes the name of your ROK governor. This will not change your discord name.',
+  })
+  public async onGovernorRename(
+    @Context() [interaction]: SlashCommandContext,
+    @Options() { governorName }: RenameGovernorDto,
+  ) {
+    const governor = await this.governorService.getGovernorByDiscordId(
+      interaction.user.id,
+    );
+    if (!governor) {
+      return await interaction.reply({
+        ephemeral: true,
+        embeds: [
+          {
+            title: `You don't have a governor linked to your discord account.\nUse \`/create-governor\` to create one.`,
+            color: 0xff0000,
+            fields: [],
+          },
+        ],
+      });
+    }
+    governor.governorName = governorName;
+    await this.governorService.updateGovernor(governor);
+    return await interaction.reply({
+      ephemeral: true,
+      embeds: [
+        {
+          title: `Governor renamed successfully`,
+          color: 0x00ff00,
+          fields: [],
         },
       ],
     });

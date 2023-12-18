@@ -43,6 +43,8 @@ export class CreateRankedEventDto {
   })
   minimumScore: number;
 }
+const ACCEPTED = true;
+const REJECTED = false;
 const TypeMap: Record<string, RankedEventType> = {
   cav: 'Cavalry MGE',
   inf: 'Infantry MGE',
@@ -208,16 +210,21 @@ export class RankedEventCommands {
   }
   async terminateBids(bids: Bid[], places: number) {
     bids.sort((a, b) => b.amount - a.amount);
+    let currentRank = 0;
     const updatedBids = bids.map(async (bid, index) => {
       console.log({ bid, places, index });
-      if (index < places) {
-        return await this.bidService.closeBid(bid, true);
+      if (currentRank < places) {
+        if (currentRank + 1 > Number(bid.desiredRank)) {
+          return await this.bidService.closeBid(bid, REJECTED);
+        }
+        currentRank++;
+        return await this.bidService.closeBid(bid, ACCEPTED);
       } else {
-        return await this.bidService.closeBid(bid, false);
+        return await this.bidService.closeBid(bid, REJECTED);
       }
     });
     await Promise.all(updatedBids);
-    return bids.slice(0, places);
+    return bids.filter((bid) => bid.status === 'accepted');
   }
   @SlashCommand({
     name: 'close-active-event',
@@ -269,10 +276,7 @@ export class RankedEventCommands {
   public async onGetInfo(@Context() [interaction]: SlashCommandContext) {
     const currentActiveEvent =
       await this.rankedEventService.getActiveRankedEvent();
-    const { places, bids } = currentActiveEvent;
-    const topBids = bids
-      .sort((a, b) => Number(b.amount) - Number(a.amount))
-      .filter((_bid, idx) => idx < places);
+
     if (!currentActiveEvent) {
       await interaction.reply({
         embeds: [
@@ -286,6 +290,11 @@ export class RankedEventCommands {
       });
       return;
     }
+    const { places, bids } = currentActiveEvent;
+    const topBids = bids
+      .filter((bid) => bid.status === 'pending')
+      .sort((a, b) => Number(b.amount) - Number(a.amount))
+      .filter((_bid, idx) => idx < places);
     return interaction.reply({
       embeds: [
         {
@@ -318,7 +327,6 @@ export class RankedEventCommands {
           })),
         },
       ],
-      ephemeral: true,
     });
   }
 }
