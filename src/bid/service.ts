@@ -36,4 +36,11 @@ export class BidService {
     await this.governorRepository.save(governor);
     return await this.bidRepository.save(bid);
   }
+  async refundBid(bid: Bid) {
+    bid.status = 'rejected';
+    const governor = bid.governor;
+    governor.points = Number(governor.points) + Number(bid.amount);
+    await this.governorRepository.save(governor);
+    return await this.bidRepository.save(bid);
+  }
 }

@@ -26,6 +26,12 @@ export class Governor {
   @Column('bigint')
   points: number;
 
+  @Column('bigint')
+  power: number;
+
+  @Column('date')
+  lastPowerUpdate: Date;
+
   @OneToMany(() => Bid, (bid) => bid.governor)
   bids: Bid[];
 }

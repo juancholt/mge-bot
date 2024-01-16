@@ -192,6 +192,19 @@ export class BidCommands {
       });
       return;
     }
+    if (amount < 100000) {
+      await interaction.reply({
+        embeds: [
+          {
+            title: `You can't bid less than 100.000 points`,
+            color: 0xff0000,
+            fields: [],
+          },
+        ],
+        ephemeral: true,
+      });
+      return;
+    }
     const governorPoints = governor.points;
     if (governorPoints < amount) {
       await interaction.reply({
@@ -245,19 +258,6 @@ export class BidCommands {
       });
       return;
     }
-    if (amount < 100000) {
-      await interaction.reply({
-        embeds: [
-          {
-            title: `You can't bid less than 100.000 points`,
-            color: 0xff0000,
-            fields: [],
-          },
-        ],
-        ephemeral: true,
-      });
-      return;
-    }
     const newBid = new Bid();
     newBid.amount = amount;
     newBid.governor = governor;
@@ -291,6 +291,7 @@ export class BidCommands {
     });
     return;
   }
+
   @SlashCommand({
     name: 'cancel-bid-for',
     description: 'Cancel bid for a governor',

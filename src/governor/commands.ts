@@ -19,6 +19,7 @@ import {
   ChatInputCommandInteraction,
 } from 'discord.js';
 import { downloadAndSplitInRows } from 'src/utils/file-downloader';
+import { requirements } from 'src/utils/util';
 
 export class CreateGovernorDto {
   @StringOption({
@@ -83,6 +84,7 @@ export class GovernorCommands {
     newGovernor.governorId = governorId;
     newGovernor.governorName = governorName;
     newGovernor.points = 0;
+    newGovernor.power = 0;
     await this.governorService.createGovernor(newGovernor);
   }
   @SlashCommand({
@@ -319,6 +321,13 @@ export class GovernorCommands {
       });
     }
     const points = parseInt(`${governor.points}`);
+    const requirementIndex =
+      Number(governor.power) > 150_000_000
+        ? requirements.length - 1
+        : Number(governor.power) < 40_000_000
+          ? 0
+          : Math.floor((Number(governor.power) - 40_000_000) / 5_000_000) + 1;
+    console.log({ requirementIndex, governor });
     await interaction.reply({
       ephemeral: true,
       embeds: [
@@ -333,6 +342,88 @@ export class GovernorCommands {
               inline: true,
             },
           ],
+        },
+        {
+          title: `KVK REQUIREMENTS`,
+          color: 0xa632a8,
+          fields: [
+            {
+              name: 'Matchmaking Power',
+              value: Number(governor.power).toLocaleString('de-DE'),
+              inline: false,
+            },
+            {
+              name: 'Required Power Drop',
+              value:
+                requirements[requirementIndex].powerLoss.toLocaleString(
+                  'de-DE',
+                ),
+              inline: false,
+            },
+            {
+              name: 'Minimum Required Kills',
+              value:
+                requirements[requirementIndex].killRequirement.toLocaleString(
+                  'de-DE',
+                ),
+              inline: false,
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  @SlashCommand({
+    name: 'batch-set-power',
+    description: 'Creates/Updates power for a list of governors from a csv',
+    defaultMemberPermissions: 'Administrator',
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
+  })
+  public async onBatchSetPower(
+    @Context() [interaction]: SlashCommandContext,
+    @Options() { file }: BatchSetPointsDto,
+  ) {
+    if (!file.contentType.includes('text/csv')) {
+      return interaction.reply({
+        ephemeral: true,
+        embeds: [
+          {
+            title: `Invalid file type`,
+            description: 'Only csv files are allowed',
+            color: 0xff0000,
+          },
+        ],
+      });
+    }
+    const rows = await downloadAndSplitInRows(file.url);
+    rows.forEach(async (row) => {
+      const [id, name, power] = row.split(',');
+      const existingGovernor =
+        await this.governorService.getGovernorByGovernorId(id);
+      if (existingGovernor) {
+        existingGovernor.power = Number(power);
+        existingGovernor.lastPowerUpdate = new Date();
+        existingGovernor.governorName = name;
+        this.governorService.updateGovernor(existingGovernor);
+      } else {
+        const newGovernor = new Governor();
+        newGovernor.governorId = id;
+        newGovernor.governorName = name;
+        newGovernor.power = Number(power);
+        newGovernor.points = 0;
+        newGovernor.lastPowerUpdate = new Date();
+        this.governorService.createGovernor(newGovernor);
+      }
+    });
+
+    return interaction.reply({
+      ephemeral: true,
+      embeds: [
+        {
+          title: `Governors succesfully uploaded`,
+          description: `${rows.length} governors uploaded`,
+          color: 0x00ff00,
         },
       ],
     });
@@ -389,6 +480,7 @@ export class GovernorCommands {
       ],
     });
   }
+
   @SlashCommand({
     name: 'rename-governor',
     description:

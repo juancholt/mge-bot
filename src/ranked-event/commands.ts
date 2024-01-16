@@ -11,6 +11,7 @@ import {
   SlashCommandContext,
   StringOption,
 } from 'necord';
+import { BidService } from 'src/bid/service';
 import {
   RankedEvent,
   RankedEventType,
@@ -18,7 +19,6 @@ import {
 } from 'src/entity/RankedEvent';
 import { RankedEventService } from './service';
 import { Bid } from 'src/entity/Bid';
-import { BidService } from 'src/bid/service';
 
 export class CreateRankedEventDto {
   @StringOption({
@@ -42,6 +42,12 @@ export class CreateRankedEventDto {
     required: true,
   })
   minimumScore: number;
+
+  @IntegerOption({
+    name: 'reserved-places',
+    description: 'Set the number of places reserved for Garrison/Rally leads',
+  })
+  reservedPlaces: number;
 }
 const ACCEPTED = true;
 const REJECTED = false;
@@ -71,11 +77,13 @@ export class RankedEventCommands {
     minimumScore,
     places,
     type,
+    reservedPlaces = 0,
   }: CreateRankedEventDto): Promise<RankedEvent> {
     const newRankedEvent = new RankedEvent();
     newRankedEvent.minimumScore = minimumScore;
     newRankedEvent.places = places;
     newRankedEvent.type = type;
+    newRankedEvent.reservedPlaces = reservedPlaces;
     const event =
       await this.rankedEventService.createRankedEvent(newRankedEvent);
 
@@ -90,7 +98,8 @@ export class RankedEventCommands {
   })
   public async onCreate(
     @Context() [interaction]: SlashCommandContext,
-    @Options() { minimumScore, places, type }: CreateRankedEventDto,
+    @Options()
+    { minimumScore, places, type, reservedPlaces }: CreateRankedEventDto,
   ) {
     const newRankedEvent = new RankedEvent();
     newRankedEvent.minimumScore = minimumScore;
@@ -113,7 +122,7 @@ export class RankedEventCommands {
                 type: 2,
                 label: 'Yes',
                 style: ButtonStyle.Primary,
-                custom_id: `create-event/${ReverseTypeMap[type]}/${places}/${minimumScore}`,
+                custom_id: `create-event/${ReverseTypeMap[type]}/${places}/${minimumScore}/${reservedPlaces}`,
               },
               {
                 type: 2,
@@ -131,13 +140,17 @@ export class RankedEventCommands {
         minimumScore,
         places,
         type,
+        reservedPlaces,
       });
       await interaction.reply({
         embeds: [
           {
             title: `New ${type} created successfully`,
             fields: [
-              { name: 'Places', value: `${places}` },
+              {
+                name: 'Places',
+                value: `${places} + ${reservedPlaces} reserved places`,
+              },
               {
                 name: 'Minimum Score',
                 value: `${minimumScore.toLocaleString('de-DE')}`,
@@ -162,24 +175,23 @@ export class RankedEventCommands {
       ],
     });
   }
-  @Button('create-event/:type/:places/:score')
+  @Button('create-event/:type/:places/:score/:reservedPlaces')
   public async onClickCreate(
     @Context() [interaction]: ButtonContext,
     @ComponentParam('type') type: string,
     @ComponentParam('places') rankedEventPlaces: number,
     @ComponentParam('score') rankedEventMinimumScore: number,
+    @ComponentParam('reservedPlaces') reservedPlaces: number,
   ) {
     const currentActiveEvent =
       await this.rankedEventService.getActiveRankedEvent();
-    const acceptedBids = await this.terminateBids(
-      currentActiveEvent.bids,
-      currentActiveEvent.places,
-    );
+    const acceptedBids = await this.terminateBids(currentActiveEvent);
     await this.rankedEventService.terminateRankedEvent(currentActiveEvent);
     await this.createRankedEvent({
       type: TypeMap[type],
       places: rankedEventPlaces,
       minimumScore: rankedEventMinimumScore,
+      reservedPlaces,
     });
     await interaction.update({
       content: '',
@@ -188,7 +200,10 @@ export class RankedEventCommands {
         {
           title: `New ${TypeMap[type]} created successfully`,
           fields: [
-            { name: 'Places', value: `${rankedEventPlaces}` },
+            {
+              name: 'Places',
+              value: `${rankedEventPlaces} + ${reservedPlaces} reserved places`,
+            },
             {
               name: 'Minimum Score',
               value: `${rankedEventMinimumScore.toLocaleString('de-DE')}`,
@@ -208,12 +223,12 @@ export class RankedEventCommands {
       ],
     });
   }
-  async terminateBids(bids: Bid[], places: number) {
+  async terminateBids({ bids, places, reservedPlaces }: RankedEvent) {
     bids.sort((a, b) => b.amount - a.amount);
-    let currentRank = 0;
+    let currentRank = reservedPlaces ?? 0;
     const updatedBids = bids.map(async (bid, index) => {
       console.log({ bid, places, index });
-      if (currentRank < places) {
+      if (currentRank < places + reservedPlaces) {
         if (currentRank + 1 > Number(bid.desiredRank)) {
           return await this.bidService.closeBid(bid, REJECTED);
         }
@@ -249,10 +264,7 @@ export class RankedEventCommands {
       });
       return;
     }
-    const acceptedBids = await this.terminateBids(
-      currentActiveEvent.bids,
-      currentActiveEvent.places,
-    );
+    const acceptedBids = await this.terminateBids(currentActiveEvent);
     await this.rankedEventService.terminateRankedEvent(currentActiveEvent);
     return interaction.reply({
       embeds: [
@@ -260,10 +272,20 @@ export class RankedEventCommands {
           title: `Active ${currentActiveEvent.type} is now closed`,
           color: 0xffbf00,
           description: `Event winners:`,
-          fields: acceptedBids.map((bid, idx) => ({
-            name: `${idx + 1} - ${bid.governor.governorName}`,
-            value: '',
-          })),
+          fields: [
+            ...Array.from({ length: currentActiveEvent.reservedPlaces }).map(
+              (_, idx) => ({
+                name: `${idx + 1} - ***Garrison/Rally lead***`,
+                value: '',
+              }),
+            ),
+            ...acceptedBids.map((bid, idx) => ({
+              name: `${idx + 1 + currentActiveEvent.reservedPlaces} - ${
+                bid.governor.governorName
+              }`,
+              value: '',
+            })),
+          ],
         },
       ],
     });
@@ -290,11 +312,20 @@ export class RankedEventCommands {
       });
       return;
     }
-    const { places, bids } = currentActiveEvent;
-    const topBids = bids
+    const { places, bids, reservedPlaces } = currentActiveEvent;
+    const pendingBids = bids
       .filter((bid) => bid.status === 'pending')
-      .sort((a, b) => Number(b.amount) - Number(a.amount))
-      .filter((_bid, idx) => idx < places);
+      .sort((a, b) => Number(b.amount) - Number(a.amount));
+    const topBids: Bid[] = [];
+    for (const bid of pendingBids) {
+      if (topBids.length >= places) {
+        break;
+      }
+      const currentRank = reservedPlaces + topBids.length + 1;
+      if (currentRank <= bid.desiredRank) {
+        topBids.push(bid);
+      }
+    }
     return interaction.reply({
       embeds: [
         {
@@ -304,6 +335,10 @@ export class RankedEventCommands {
             {
               value: currentActiveEvent.minimumScore.toLocaleString('de-DE'),
               name: 'Minimum Score',
+            },
+            {
+              value: `${currentActiveEvent.reservedPlaces}`,
+              name: 'Reserved Places',
             },
             {
               value: `${currentActiveEvent.places}`,
@@ -319,8 +354,131 @@ export class RankedEventCommands {
         {
           title: `Rankings ${currentActiveEvent.type}`,
           color: 0xffbf00,
+          fields: [
+            ...Array.from({ length: currentActiveEvent.reservedPlaces }).map(
+              (_, idx) => ({
+                name: `${idx + 1} - ***Garrison/Rally lead***`,
+                value: '',
+              }),
+            ),
+            ...topBids.map((bid, idx) => ({
+              value: `${idx + currentActiveEvent.reservedPlaces + 1} - ${
+                bid.governor.governorName
+              } - ${Number(bid.amount).toLocaleString()}`,
+              name: '',
+            })),
+          ],
+        },
+      ],
+    });
+  }
+  @SlashCommand({
+    name: 'previous-event-info',
+    description: 'Gets last event information',
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
+  })
+  public async onPreviousEventInfo(
+    @Context() [interaction]: SlashCommandContext,
+  ) {
+    const lastActiveEvent = await this.rankedEventService.getLastRankedEvent();
+
+    if (!lastActiveEvent) {
+      await interaction.reply({
+        embeds: [
+          {
+            title: `No events available`,
+            color: 0xff0000,
+            fields: [],
+          },
+        ],
+        ephemeral: true,
+      });
+      return;
+    }
+    const { bids } = lastActiveEvent;
+    const topBids = bids
+      .filter((bid) => bid.status === 'accepted')
+      .sort((a, b) => Number(b.amount) - Number(a.amount));
+    return interaction.reply({
+      embeds: [
+        {
+          title: `Last ${lastActiveEvent.type}`,
+          color: 0xffbf00,
+          fields: [
+            {
+              value: lastActiveEvent.minimumScore.toLocaleString('de-DE'),
+              name: 'Minimum Score',
+            },
+            {
+              value: `${lastActiveEvent.reservedPlaces}`,
+              name: 'Reserved Places',
+            },
+            {
+              value: `${lastActiveEvent.places}`,
+              name: 'Places',
+            },
+
+            {
+              value: `${lastActiveEvent.bids.length}`,
+              name: 'Current bids',
+            },
+          ],
+        },
+        {
+          title: `Rankings ${lastActiveEvent.type}`,
+          color: 0xffbf00,
+          fields: [
+            ...Array.from({ length: lastActiveEvent.reservedPlaces }).map(
+              (_, idx) => ({
+                name: `${idx + 1} - ***Garrison/Rally lead***`,
+                value: '',
+              }),
+            ),
+            ...topBids.map((bid, idx) => ({
+              value: `${idx + lastActiveEvent.reservedPlaces + 1} - ${
+                bid.governor.governorName
+              } - ${Number(bid.amount).toLocaleString()}`,
+              name: '',
+            })),
+          ],
+        },
+      ],
+    });
+  }
+
+  @SlashCommand({
+    name: 'refund-last-event',
+    description: 'Refunds last event',
+    defaultMemberPermissions: 'Administrator',
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
+  })
+  public async onRefund(@Context() [interaction]: SlashCommandContext) {
+    const lastActiveEvent = await this.rankedEventService.getLastRankedEvent();
+
+    if (!lastActiveEvent) {
+      await interaction.reply({
+        embeds: [
+          {
+            title: `No events available`,
+            color: 0xff0000,
+            fields: [],
+          },
+        ],
+        ephemeral: true,
+      });
+      return;
+    }
+    const { bids } = lastActiveEvent;
+    const topBids = bids.filter((bid) => bid.status === 'accepted');
+
+    await Promise.all(topBids.map((bid) => this.bidService.refundBid(bid)));
+    return interaction.reply({
+      embeds: [
+        {
+          title: `Refunded ${lastActiveEvent.type}`,
+          color: 0xffbf00,
           fields: topBids.map((bid, idx) => ({
-            value: `${idx + 1} - ${bid.governor.governorName} - ${Number(
+            value: `${idx} - ${bid.governor.governorName} - ${Number(
               bid.amount,
             ).toLocaleString()}`,
             name: '',

@@ -11,13 +11,13 @@ import { GovernorRepository } from 'src/governor/repository';
 @Module({
   imports: [DatabaseModule],
   providers: [
+    ...GovernorRepository,
+    ...BidRepository,
+    ...RankedEventRepository,
     BidService,
     GovernorService,
     RankedEventService,
     RankedEventCommands,
-    ...RankedEventRepository,
-    ...BidRepository,
-    ...GovernorRepository,
   ],
   exports: [RankedEventService, RankedEventCommands],
 })

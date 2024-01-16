@@ -43,6 +43,11 @@ export class RankedEvent extends BaseEntity {
   })
   type: RankedEventType;
 
+  @Column({
+    type: 'smallint',
+  })
+  reservedPlaces: number;
+
   @OneToMany(() => Bid, (bid) => bid.rankedEvent)
   bids: Bid[];
 }

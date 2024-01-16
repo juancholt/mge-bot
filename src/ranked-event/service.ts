@@ -20,6 +20,13 @@ export class RankedEventService {
       relations: ['bids', 'bids.governor'],
     });
   }
+  async getLastRankedEvent() {
+    return await this.rankedEventRepository.findOne({
+      where: { status: 'finished' },
+      order: { id: 'DESC' },
+      relations: ['bids', 'bids.governor'],
+    });
+  }
 
   async activateEvent(id: number) {
     const rankedEvent = await this.rankedEventRepository.findOneBy({
