@@ -20,6 +20,7 @@ import {
 } from 'discord.js';
 import { downloadAndSplitInRows } from 'src/utils/file-downloader';
 import { requirements } from 'src/utils/util';
+import { filledBar } from 'string-progressbar';
 
 export class CreateGovernorDto {
   @StringOption({
@@ -84,7 +85,6 @@ export class GovernorCommands {
     newGovernor.governorId = governorId;
     newGovernor.governorName = governorName;
     newGovernor.points = 0;
-    newGovernor.power = 0;
     await this.governorService.createGovernor(newGovernor);
   }
   @SlashCommand({
@@ -321,109 +321,73 @@ export class GovernorCommands {
       });
     }
     const points = parseInt(`${governor.points}`);
+    const { kvks = [] } = governor;
+    const {
+      matchMakingPower = 0,
+      t4Kills = 0,
+      t5Kills = 0,
+      //deadTroops = 0,
+    } = kvks.find((kvk) => kvk.activeKvk) ?? {};
     const requirementIndex =
-      Number(governor.power) > 150_000_000
+      Number(matchMakingPower) > 150_000_000
         ? requirements.length - 1
-        : Number(governor.power) < 40_000_000
+        : Number(matchMakingPower) < 40_000_000
           ? 0
-          : Math.floor((Number(governor.power) - 40_000_000) / 5_000_000) + 1;
+          : Math.floor((Number(matchMakingPower) - 40_000_000) / 5_000_000) + 1;
+    const killProgress =
+      (Number(t4Kills + t5Kills) /
+        requirements[requirementIndex].killRequirement) *
+      100;
+    // const powerlossProgress =
+    //   (Number(deadTroops) / requirements[requirementIndex].powerLoss) * 100;
     console.log({ requirementIndex, governor });
     await interaction.reply({
       ephemeral: true,
       embeds: [
         {
-          title: `${governor.governorName}`,
+          title: `🛡️ Governor Info 🛡️`,
+          description: `# ${governor.governorName}
+          > **🪪 Governor Id** : ${governor.governorId}
+          > **🏦 Point balance**: ${points.toLocaleString('de-DE')}`,
           color: 0xa632a8,
-          fields: [
-            { name: 'Governor Id', value: governor.governorId, inline: false },
-            {
-              name: 'Point Balance',
-              value: points.toLocaleString('de-DE'),
-              inline: true,
-            },
-          ],
         },
         {
-          title: `KVK REQUIREMENTS`,
-          color: 0xa632a8,
-          fields: [
-            {
-              name: 'Matchmaking Power',
-              value: Number(governor.power).toLocaleString('de-DE'),
-              inline: false,
-            },
-            {
-              name: 'Required Power Drop',
-              value:
-                requirements[requirementIndex].powerLoss.toLocaleString(
-                  'de-DE',
-                ),
-              inline: false,
-            },
-            {
-              name: 'Minimum Required Kills',
-              value:
-                requirements[requirementIndex].killRequirement.toLocaleString(
-                  'de-DE',
-                ),
-              inline: false,
-            },
-          ],
-        },
-      ],
-    });
-  }
-
-  @SlashCommand({
-    name: 'batch-set-power',
-    description: 'Creates/Updates power for a list of governors from a csv',
-    defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
-  })
-  public async onBatchSetPower(
-    @Context() [interaction]: SlashCommandContext,
-    @Options() { file }: BatchSetPointsDto,
-  ) {
-    if (!file.contentType.includes('text/csv')) {
-      return interaction.reply({
-        ephemeral: true,
-        embeds: [
-          {
-            title: `Invalid file type`,
-            description: 'Only csv files are allowed',
-            color: 0xff0000,
-          },
-        ],
-      });
-    }
-    const rows = await downloadAndSplitInRows(file.url);
-    rows.forEach(async (row) => {
-      const [id, name, power] = row.split(',');
-      const existingGovernor =
-        await this.governorService.getGovernorByGovernorId(id);
-      if (existingGovernor) {
-        existingGovernor.power = Number(power);
-        existingGovernor.lastPowerUpdate = new Date();
-        existingGovernor.governorName = name;
-        this.governorService.updateGovernor(existingGovernor);
-      } else {
-        const newGovernor = new Governor();
-        newGovernor.governorId = id;
-        newGovernor.governorName = name;
-        newGovernor.power = Number(power);
-        newGovernor.points = 0;
-        newGovernor.lastPowerUpdate = new Date();
-        this.governorService.createGovernor(newGovernor);
-      }
-    });
-
-    return interaction.reply({
-      ephemeral: true,
-      embeds: [
-        {
-          title: `Governors succesfully uploaded`,
-          description: `${rows.length} governors uploaded`,
-          color: 0x00ff00,
+          title: ``,
+          description: `
+          # ⚔️ KVK Requirements ⚔️ 
+          > # ${Number(matchMakingPower).toLocaleString('de-DE').trim()}
+          > *Matchmaking Power 💪*
+          ## -
+          > # ${Number(requirements[requirementIndex].powerLoss).toLocaleString(
+            'de-DE',
+          )}
+          > *Required Power Drop 📉*
+          ## -
+          ## Minimum Required Kills 💀
+          > ${(Number(t4Kills) + Number(t5Kills)).toLocaleString(
+            'de-DE',
+          )} / **${requirements[
+            requirementIndex
+          ].killRequirement.toLocaleString('de-DE')}**\n> ${filledBar(
+            100,
+            killProgress,
+            20,
+            '░',
+            '▓',
+          ).join(' ')}%\n`,
+          color:
+            killProgress < 50
+              ? 0xff0000
+              : killProgress < 75
+                ? 0xffbf00
+                : 0x00ff00,
+          // `> ${Number(deadTroops).toLocaleString(
+          //   'de-DE',
+          // )} / **${requirements[requirementIndex].powerLoss.toLocaleString(
+          //   'de-DE',
+          // )}**\n> ${filledBar(100, powerlossProgress, 20, '░', '▓').join(
+          //   ' ',
+          // )}%\n`,
         },
       ],
     });

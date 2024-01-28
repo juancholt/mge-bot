@@ -25,7 +25,10 @@ export class GovernorService {
     });
   }
   async getGovernorByDiscordId(discordId: string) {
-    return await this.governorRepository.findOneBy({ discordId });
+    return await this.governorRepository.findOne({
+      where: { discordId },
+      relations: ['kvks', 'kvks.governor'],
+    });
   }
   async resetPointsForAllGovernors() {
     await this.governorRepository.update({}, { points: 0 });

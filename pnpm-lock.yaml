@@ -37,6 +37,9 @@ dependencies:
   rxjs:
     specifier: ^7.8.1
     version: 7.8.1
+  string-progressbar:
+    specifier: ^1.0.4
+    version: 1.0.4
   typeorm:
     specifier: 0.3.17
     version: 0.3.17(pg@8.11.3)(ts-node@10.9.1)
@@ -5122,6 +5125,10 @@ packages:
       char-regex: 1.0.2
       strip-ansi: 6.0.1
     dev: true
+
+  /string-progressbar@1.0.4:
+    resolution: {integrity: sha512-OpkcFxlFjn7kz5jTWmPGY+FFJVN21lQ9k0fkK0XS5GVvlCgS1stgDNEoMyqnkbZEcVP3Gv6IxqgG7tnD7ChBSw==}
+    dev: false
 
   /string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}

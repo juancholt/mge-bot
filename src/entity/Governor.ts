@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Bid } from './Bid';
+import { KVK } from './KVK';
 
 @Entity()
 export class Governor {
@@ -26,12 +27,9 @@ export class Governor {
   @Column('bigint')
   points: number;
 
-  @Column('bigint')
-  power: number;
-
-  @Column('date')
-  lastPowerUpdate: Date;
-
   @OneToMany(() => Bid, (bid) => bid.governor)
   bids: Bid[];
+
+  @OneToMany(() => KVK, (kvk) => kvk.governor)
+  kvks: KVK[];
 }

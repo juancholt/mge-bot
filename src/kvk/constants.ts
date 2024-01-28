@@ -1,0 +1,1 @@
+export const KVK_REPOSITORY = 'KVK_REPOSITORY';
