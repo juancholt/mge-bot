@@ -16,7 +16,10 @@ export class GovernorService {
     return await this.governorRepository.save(governor);
   }
   async getGovernorByGovernorId(governorId: string) {
-    return await this.governorRepository.findOneBy({ governorId });
+    return await this.governorRepository.findOne({
+      where: { governorId },
+      relations: ['kvks'],
+    });
   }
   async getGovernorByGovernorIdWithBids(governorId: string) {
     return await this.governorRepository.findOne({

@@ -335,12 +335,18 @@ export class GovernorCommands {
           ? 0
           : Math.floor((Number(matchMakingPower) - 40_000_000) / 5_000_000) + 1;
     const killProgress =
-      (Number(t4Kills + t5Kills) /
+      ((Number(t4Kills) + Number(t5Kills)) /
         requirements[requirementIndex].killRequirement) *
       100;
+    const [killProgressBar, killProgressPercentage] = filledBar(
+      100,
+      killProgress,
+      20,
+      '░',
+      '▓',
+    );
     // const powerlossProgress =
     //   (Number(deadTroops) / requirements[requirementIndex].powerLoss) * 100;
-    console.log({ requirementIndex, governor });
     await interaction.reply({
       ephemeral: true,
       embeds: [
@@ -354,7 +360,7 @@ export class GovernorCommands {
         {
           title: ``,
           description: `
-          # ⚔️ KVK Requirements ⚔️ 
+          # ⚔️ KVK Requirements ⚔️
           > # ${Number(matchMakingPower).toLocaleString('de-DE').trim()}
           > *Matchmaking Power 💪*
           ## -
@@ -368,13 +374,11 @@ export class GovernorCommands {
             'de-DE',
           )} / **${requirements[
             requirementIndex
-          ].killRequirement.toLocaleString('de-DE')}**\n> ${filledBar(
-            100,
-            killProgress,
-            20,
-            '░',
-            '▓',
-          ).join(' ')}%\n`,
+          ].killRequirement.toLocaleString(
+            'de-DE',
+          )}**\n> ${killProgressBar} ${Number(killProgressPercentage).toFixed(
+            2,
+          )}%\n`,
           color:
             killProgress < 50
               ? 0xff0000

@@ -34,7 +34,7 @@ export class KvkCommands {
     defaultMemberPermissions: 'Administrator',
     guilds: ['1111240948446416896', process.env.GUILD_ID],
   })
-  public async onBatchUpdateStats(
+  public async onBatchSetStats(
     @Context() [interaction]: SlashCommandContext,
     @Options() { file }: BatchSetStatsDto,
   ) {
@@ -82,6 +82,76 @@ export class KvkCommands {
     });
 
     return interaction.reply({
+      ephemeral: true,
+      embeds: [
+        {
+          title: `KVK succesfully uploaded`,
+          color: 0x00ff00,
+        },
+      ],
+    });
+  }
+  @SlashCommand({
+    name: 'batch-update-stats',
+    description: 'Creates/Updates stats for a list of governors from a csv',
+    defaultMemberPermissions: 'Administrator',
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
+  })
+  public async onBatchUpdateStats(
+    @Context() [interaction]: SlashCommandContext,
+    @Options() { file }: BatchSetStatsDto,
+  ) {
+    await interaction.deferReply();
+    if (!file.contentType.includes('text/csv')) {
+      return interaction.reply({
+        ephemeral: true,
+        embeds: [
+          {
+            title: `Invalid file type`,
+            description: 'Only csv files are allowed',
+            color: 0xff0000,
+          },
+        ],
+      });
+    }
+    const rows = await downloadAndSplitInRows(file.url);
+    rows.forEach(async (row) => {
+      console.log(row);
+      const [id, name, t4Kills, t5Kills, deadTroops] = row.split(',');
+      let currentGovernor =
+        await this.governorService.getGovernorByGovernorId(id);
+      if (currentGovernor) {
+        currentGovernor.governorName = name;
+        await this.governorService.updateGovernor(currentGovernor);
+      } else {
+        currentGovernor = new Governor();
+        currentGovernor.governorId = id;
+        currentGovernor.governorName = name;
+        currentGovernor.points = 0;
+        await this.governorService.createGovernor(currentGovernor);
+      }
+
+      const currentKVK = currentGovernor.kvks.find((kvk) => kvk.activeKvk);
+      if (!currentKVK) {
+        return interaction.reply({
+          ephemeral: true,
+          embeds: [
+            {
+              title: `No active KVK found for governor ${currentGovernor.governorName}`,
+              color: 0xff0000,
+            },
+          ],
+        });
+      }
+      currentKVK.t5Kills = Number(t5Kills);
+      currentKVK.t4Kills = Number(t4Kills);
+      currentKVK.deadTroops = Number(deadTroops);
+      currentKVK.score = 0;
+      currentKVK.governor = currentGovernor;
+      await this.kvkService.createKvk(currentKVK);
+    });
+
+    return interaction.followUp({
       ephemeral: true,
       embeds: [
         {
