@@ -68,6 +68,16 @@ export class BatchSetPointsDto {
   })
   file: Attachment;
 }
+
+export class GovernorIdDto {
+  @StringOption({
+    name: 'governor-id',
+    description: 'Governor ingame id.',
+    required: true,
+  })
+  governorId: string;
+}
+
 @Injectable()
 export class GovernorCommands {
   constructor(private readonly governorService: GovernorService) {}
@@ -482,6 +492,108 @@ export class GovernorCommands {
           title: `Governor renamed successfully`,
           color: 0x00ff00,
           fields: [],
+        },
+      ],
+    });
+  }
+
+  @SlashCommand({
+    name: 'governor-info',
+    defaultMemberPermissions: 'Administrator',
+    description: 'Gets the profile info for your governor.',
+    guilds: ['1111240948446416896', process.env.GUILD_ID],
+  })
+  public async onGetPointBalanceByGovernorId(
+    @Context() [interaction]: SlashCommandContext,
+    @Options() { governorId }: GovernorIdDto,
+  ) {
+    const governor = await this.governorService.getGovernorByGovernorId(
+      governorId,
+    );
+    if (!governor) {
+      return await interaction.reply({
+        ephemeral: true,
+        embeds: [
+          {
+            title: `This governor doesn't exist`,
+            color: 0xff0000,
+            fields: [],
+          },
+        ],
+      });
+    }
+    const points = parseInt(`${governor.points}`);
+    const { kvks = [] } = governor;
+    const {
+      matchMakingPower = 0,
+      t4Kills = 0,
+      t5Kills = 0,
+      //deadTroops = 0,
+    } = kvks.find((kvk) => kvk.activeKvk) ?? {};
+    const requirementIndex =
+      Number(matchMakingPower) > 150_000_000
+        ? requirements.length - 1
+        : Number(matchMakingPower) < 40_000_000
+          ? 0
+          : Math.floor((Number(matchMakingPower) - 40_000_000) / 5_000_000) + 1;
+    const killProgress =
+      ((Number(t4Kills) + Number(t5Kills)) /
+        requirements[requirementIndex].killRequirement) *
+      100;
+    const [killProgressBar, killProgressPercentage] = filledBar(
+      100,
+      killProgress,
+      20,
+      '░',
+      '▓',
+    );
+    // const powerlossProgress =
+    //   (Number(deadTroops) / requirements[requirementIndex].powerLoss) * 100;
+    await interaction.reply({
+      ephemeral: true,
+      embeds: [
+        {
+          title: `🛡️ Governor Info 🛡️`,
+          description: `# ${governor.governorName}
+          > **🪪 Governor Id** : ${governor.governorId}
+          > **🏦 Point balance**: ${points.toLocaleString('de-DE')}`,
+          color: 0xa632a8,
+        },
+        {
+          title: ``,
+          description: `
+          # ⚔️ KVK Requirements ⚔️
+          > # ${Number(matchMakingPower).toLocaleString('de-DE').trim()}
+          > *Matchmaking Power 💪*
+          ## -
+          > # ${Number(requirements[requirementIndex].powerLoss).toLocaleString(
+            'de-DE',
+          )}
+          > *Required Power Drop 📉*
+          ## -
+          ## Minimum Required Kills 💀
+          > ${(Number(t4Kills) + Number(t5Kills)).toLocaleString(
+            'de-DE',
+          )} / **${requirements[
+            requirementIndex
+          ].killRequirement.toLocaleString(
+            'de-DE',
+          )}**\n> ${killProgressBar} ${Number(killProgressPercentage).toFixed(
+            2,
+          )}%\n`,
+          color:
+            killProgress < 50
+              ? 0xff0000
+              : killProgress < 75
+                ? 0xffbf00
+                : 0x00ff00,
+          // `> ${Number(deadTroops).toLocaleString(
+          //   'de-DE',
+          // )} / **${requirements[requirementIndex].powerLoss.toLocaleString(
+          //   'de-DE',
+          // )}**\n> ${filledBar(100, powerlossProgress, 20, '░', '▓').join(
+          //   ' ',
+          // )}%\n`,
         },
       ],
     });
