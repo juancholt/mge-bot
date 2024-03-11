@@ -146,9 +146,10 @@ export class KvkCommands {
           ],
         });
       }
-      const t4Decimal = new Decimal(t4Kills);
-      const t5Decimal = new Decimal(t5Kills);
-      const deadDecimal = new Decimal(deadTroops);
+      console.log({ t4Kills, t5Kills, deadTroops });
+      const t4Decimal = new Decimal(t4Kills || 0);
+      const t5Decimal = new Decimal(t5Kills || 0);
+      const deadDecimal = new Decimal(deadTroops || 0);
       const score = t4Decimal
         .times(4)
         .plus(t5Decimal.times(8))
@@ -165,6 +166,10 @@ export class KvkCommands {
       const [lastKvk, secondToLastKvk] = currentGovernor.kvks.sort(
         (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime(),
       );
+      if (lastKvk && !secondToLastKvk) {
+        currentGovernor.points += lastKvk.score;
+        await this.governorService.updateGovernor(currentGovernor);
+      }
       if (lastKvk && secondToLastKvk) {
         const lastKvkScore = lastKvk.score;
         const secondToLastKvkScore = secondToLastKvk.score;
