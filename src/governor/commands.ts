@@ -333,24 +333,14 @@ export class GovernorCommands {
     }
     const rows = await downloadAndSplitInRows(file.url);
     rows.forEach(async (row) => {
-      const [id, points] = row.split(',');
-      const existingGovernor =
-        await this.governorService.getGovernorByGovernorId(id);
-      if (existingGovernor) {
-        const bids = existingGovernor.bids.filter(
-          (bid) => bid.status === 'accepted',
-        );
-        let pointBalance = new Decimal(points.replace(/(\r\n|\n|\r)/gm, ''));
-        for (const bid of bids) {
-          pointBalance = pointBalance.minus(bid.amount);
-        }
-
-        existingGovernor.points = pointBalance
-          .add(existingGovernor.points)
-          .toNumber();
-
-        this.governorService.updateGovernor(existingGovernor);
-      }
+      const [id, name, points] = row.split(',');
+      const newGovernor = new Governor();
+      newGovernor.governorId = id;
+      newGovernor.governorName = name;
+      newGovernor.points = new Decimal(
+        points.replace(/(\r\n|\n|\r)/gm, ''),
+      ).toNumber();
+      await this.governorService.createGovernor(newGovernor);
     });
 
     return interaction.reply({
@@ -447,7 +437,7 @@ export class GovernorCommands {
           > **🪪 Governor Id** : ${governor.governorId}`,
           color: 0xa632a8,
         },
-        this.getLastKvkEmbed(governor),
+        ...this.getLastKvkEmbed(governor),
       ],
     });
   }
@@ -508,7 +498,7 @@ export class GovernorCommands {
           > **🏦 Point balance**: ${points.toLocaleString('de-DE')}`,
           color: 0xa632a8,
         },
-        kvkInfo,
+        ...(governor.kvks.length > 0 ? kvkInfo : []),
       ],
     });
   }
@@ -536,9 +526,10 @@ export class GovernorCommands {
       '░',
       '▓',
     );
-    return {
-      title: ``,
-      description: `
+    return [
+      {
+        title: ``,
+        description: `
       # ⚔️ KVK Requirements ⚔️
       > # ${Number(matchMakingPower).toLocaleString('de-DE').trim()}
       > *Matchmaking Power 💪*
@@ -556,9 +547,14 @@ export class GovernorCommands {
       )}**\n> ${killProgressBar} ${Number(killProgressPercentage).toFixed(
         2,
       )}%\n`,
-      color:
-        killProgress < 50 ? 0xff0000 : killProgress < 75 ? 0xffbf00 : 0x00ff00,
-    };
+        color:
+          killProgress < 50
+            ? 0xff0000
+            : killProgress < 75
+              ? 0xffbf00
+              : 0x00ff00,
+      },
+    ];
   }
   private getLastKvkEmbed(governor: Governor) {
     const { kvks = [] } = governor;
@@ -603,18 +599,19 @@ export class GovernorCommands {
     const powerLossSection = `> ${powerLossProgressBar} ${Number(
       powerLossProgressPercentage,
     ).toFixed(2)}%`;
-    return {
-      title: ``,
-      description: `
+    return [
+      {
+        title: ``,
+        description: `
       # ⚔️ KVK Requirements ⚔️
       ### (finished: ${new Date(endDate).toLocaleDateString('de-DE')})
       > # ${Number(matchMakingPower).toLocaleString('de-DE').trim()}
       > *Matchmaking Power 💪*
       ## -
       ## Required Power Drop 📉
-      > ${Number(requirements[requirementIndex].powerLoss).toLocaleString(
-        'de-DE',
-      )} / ** ${Number(powerLoss).toLocaleString('de-DE')} **
+      > ${Number(powerLoss).toLocaleString('de-DE')} / ** ${Number(
+        requirements[requirementIndex].powerLoss,
+      ).toLocaleString('de-DE')} **
       ${powerLossSection}
       ## -
       ## Minimum Required Kills 💀
@@ -625,8 +622,31 @@ export class GovernorCommands {
       )}**\n> ${killProgressBar} ${Number(killProgressPercentage).toFixed(
         2,
       )}%\n`,
-      color:
-        killProgress < 50 ? 0xff0000 : killProgress < 75 ? 0xffbf00 : 0x00ff00,
-    };
+        color:
+          killProgress < 50
+            ? 0xff0000
+            : killProgress < 75
+              ? 0xffbf00
+              : 0x00ff00,
+      },
+      {
+        title: ``,
+        description: `
+          ## ${
+            killProgress < 50
+              ? '❌ DEADWEIGHT'
+              : killProgress < 75
+                ? `⚠️ Close enough, but could've been better`
+                : '✅ Good job'
+          }
+        `,
+        color:
+          killProgress < 50
+            ? 0xff0000
+            : killProgress < 75
+              ? 0xffbf00
+              : 0x00ff00,
+      },
+    ];
   }
 }

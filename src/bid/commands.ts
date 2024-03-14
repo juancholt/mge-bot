@@ -26,6 +26,7 @@ export class CreateBidDto {
       "If you get a rank lower than this, you'll get your points back",
 
     choices: [
+      { name: 'Minimum top 3', value: 3 },
       { name: 'Minimum top 5', value: 5 },
       { name: 'Minimum top 10', value: 10 },
       { name: 'Minimum top 15', value: 15 },
