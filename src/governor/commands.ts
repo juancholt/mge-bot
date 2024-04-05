@@ -582,7 +582,7 @@ export class GovernorCommands {
     const [killProgressBar, killProgressPercentage] = filledBar(
       100,
       killProgress,
-      20,
+      10,
       '░',
       '▓',
     );
@@ -592,7 +592,7 @@ export class GovernorCommands {
     const [powerLossProgressBar, powerLossProgressPercentage] = filledBar(
       100,
       powerlossProgress,
-      20,
+      10,
       '░',
       '▓',
     );

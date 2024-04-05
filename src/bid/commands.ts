@@ -303,6 +303,19 @@ export class BidCommands {
     @Context() [interaction]: SlashCommandContext,
     @Options() { governorId }: CancelBidDto,
   ) {
+    const SUPER_ADMIN = '273490786736406528';
+    if (interaction.user.id !== SUPER_ADMIN) {
+      return interaction.reply({
+        embeds: [
+          {
+            title: `You don't have permission to cancel bids`,
+            color: 0xff0000,
+            fields: [],
+          },
+        ],
+        ephemeral: true,
+      });
+    }
     const governor =
       await this.governorService.getGovernorByGovernorIdWithBids(governorId);
     const currentBid = governor.bids.find((bid) => bid.status === 'pending');

@@ -22,6 +22,7 @@ export class BidService {
       where: {
         rankedEvent: { status: 'active' },
         governor: { id: governor.id },
+        status: 'pending',
       },
       relations: ['governor', 'rankedEvent'],
     });
