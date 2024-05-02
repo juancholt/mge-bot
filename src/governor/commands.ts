@@ -313,7 +313,7 @@ export class GovernorCommands {
     name: 'batch-set-points',
     description: 'Creates/Updates points for a list of governors from a csv',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onBatchSetPoints(
     @Context() [interaction]: SlashCommandContext,
@@ -395,7 +395,7 @@ export class GovernorCommands {
   @SlashCommand({
     name: 'my-info',
     description: 'Gets the profile info for your governor.',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onGetPointBalance(
     @Context() [interaction]: SlashCommandContext,
@@ -409,7 +409,7 @@ export class GovernorCommands {
   @SlashCommand({
     name: 'last-kvk',
     description: 'Gets the last kvk stats for your id.',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onGetLastKvk(@Context() [interaction]: SlashCommandContext) {
     const governor = await this.governorService.getGovernorByDiscordId(
@@ -445,7 +445,7 @@ export class GovernorCommands {
     name: 'governor-info',
     defaultMemberPermissions: 'Administrator',
     description: 'Gets the profile info for your governor.',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onGetPointBalanceByGovernorId(
     @Context() [interaction]: SlashCommandContext,

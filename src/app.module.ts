@@ -14,6 +14,7 @@ import { KVKModule } from './kvk/module';
     KVKModule,
     NecordModule.forRoot({
       token: process.env.DISCORD_BOT_TOKEN,
+      prefix: process.env.ENV === 'dev' ? 'test-' : '',
       intents: ['Guilds', 'GuildMessages', 'DirectMessages'],
     }),
   ],

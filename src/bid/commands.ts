@@ -55,7 +55,7 @@ export class BidCommands {
   @SlashCommand({
     name: 'get-current-bid',
     description: 'Get your current bid for the active event',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onGetCurrentBid(@Context() [interaction]: SlashCommandContext) {
     const governor = await this.governorService.getGovernorByDiscordId(
@@ -130,7 +130,7 @@ export class BidCommands {
   @SlashCommand({
     name: 'place-bid',
     description: 'Add a bid for the current active event',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onCreate(
     @Context() [interaction]: SlashCommandContext,
@@ -297,7 +297,7 @@ export class BidCommands {
     name: 'cancel-bid-for',
     description: 'Cancel bid for a governor',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onCancelBid(
     @Context() [interaction]: SlashCommandContext,

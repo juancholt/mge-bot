@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Bid } from './Bid';
-import { KVK } from './KVK';
+import { KVKStat } from './KVKStat';
 
 @Entity()
 export class Governor {
@@ -30,6 +30,6 @@ export class Governor {
   @OneToMany(() => Bid, (bid) => bid.governor)
   bids: Bid[];
 
-  @OneToMany(() => KVK, (kvk) => kvk.governor)
-  kvks: KVK[];
+  @OneToMany(() => KVKStat, (kvkStat) => kvkStat.governor)
+  stats: KVKStat[];
 }

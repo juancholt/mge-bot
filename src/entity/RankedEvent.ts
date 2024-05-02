@@ -45,6 +45,7 @@ export class RankedEvent extends BaseEntity {
 
   @Column({
     type: 'smallint',
+    default: 0,
   })
   reservedPlaces: number;
 
