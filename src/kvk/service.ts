@@ -29,4 +29,9 @@ export class KVKService {
     kvk.activeKvk = false;
     return await this.kvkRepository.save(kvk);
   }
+  async getAllActiveKvkStats() {
+    return await this.kvkRepository.findBy({
+      activeKvk: true,
+    });
+  }
 }

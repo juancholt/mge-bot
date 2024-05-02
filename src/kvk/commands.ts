@@ -30,8 +30,8 @@ export class KvkCommands {
   ) {}
 
   @SlashCommand({
-    name: 'batch-set-stats',
-    description: 'Creates/Updates stats for a list of governors from a csv',
+    name: 'batch-create_kvk-stats',
+    description: 'Creates kvk stats for a list of governors from a csv',
     defaultMemberPermissions: 'Administrator',
     guilds: ['1111240948446416896', process.env.GUILD_ID],
   })
@@ -39,6 +39,9 @@ export class KvkCommands {
     @Context() [interaction]: SlashCommandContext,
     @Options() { file }: BatchSetStatsDto,
   ) {
+    const previousKvkStats =
+      (await this.kvkService.getAllActiveKvkStats()) ?? [];
+    await Promise.all(previousKvkStats.map(this.kvkService.endKvk));
     if (!file.contentType.includes('text/csv')) {
       return interaction.reply({
         ephemeral: true,
