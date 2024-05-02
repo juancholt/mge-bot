@@ -6,34 +6,67 @@ import {
   Options,
   SlashCommand,
   SlashCommandContext,
+  StringOption,
 } from 'necord';
 import { Governor } from 'src/entity/Governor';
-import { KVK } from 'src/entity/KVK';
+import { KVKStats } from 'src/entity/KVKStat';
 import { GovernorService } from 'src/governor/service';
 import { downloadAndSplitInRows } from 'src/utils/file-downloader';
-import { KVKService } from './service';
+import { KVKStatsService } from './kvk_stats.service';
 import Decimal from 'decimal.js-light';
+import { KVKType, KVKTypes } from 'src/entity/KVK';
 
-export class BatchSetStatsDto {
-  @AttachmentOption({
-    name: 'file',
-    description: 'CSV file containing governor ids and points',
+export class CreateKvkOptions {
+  @StringOption({
+    name: 'type',
+    description: 'Type of KVK',
+    choices: KVKTypes.map((type) => ({ name: type, value: type })),
     required: true,
   })
-  file: Attachment;
+  type: KVKType;
 }
 @Injectable()
 export class KvkCommands {
   constructor(
-    private readonly kvkService: KVKService,
+    private readonly kvkService: KVKStatsService,
     private readonly governorService: GovernorService,
   ) {}
+
+  @SlashCommand({
+    name: 'create-kvk',
+    description: 'Creates a new KVK, and sets it as active',
+    defaultMemberPermissions: 'Administrator',
+    guilds: ['1111240948446416896'],
+  })
+  public async onCreateKVK(
+    @Context() [interaction]: SlashCommandContext,
+    @Options() { type }: CreateKvkOptions,
+  ) {
+    const currentActiveKVK = await this.kvkService.getActiveKVK();
+    if (currentActiveKVK) {
+      currentActiveKVK.active = false;
+      await this.kvkService.updateKvk(currentActiveKVK);
+    }
+    const newKVK = new KVKStats();
+    newKVK.activeKvk = true;
+    newKVK.type = type;
+    await this.kvkService.createKvk(newKVK);
+    return interaction.reply({
+      ephemeral: true,
+      embeds: [
+        {
+          title: `KVK ${type} succesfully created`,
+          color: 0x00ff00,
+        },
+      ],
+    });
+  }
 
   @SlashCommand({
     name: 'batch-set-stats',
     description: 'Creates/Updates stats for a list of governors from a csv',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onBatchSetStats(
     @Context() [interaction]: SlashCommandContext,
@@ -71,8 +104,8 @@ export class KvkCommands {
 
       const currentKVK =
         (currentGovernor.kvks ?? []).length > 0
-          ? currentGovernor.kvks.find((kvk) => kvk.activeKvk)
-          : new KVK();
+          ? currentGovernor.kvks.find((kvk) => kvk.activeKvk) ?? new KVKStats()
+          : new KVKStats();
       currentKVK.matchMakingPower = Number(matchmakingPower);
       currentKVK.t4Kills = Number(t4Kills);
       currentKVK.t5Kills = Number(t5Kills);
@@ -98,7 +131,7 @@ export class KvkCommands {
     description:
       'Creates/Updates stats for a list of governors from a csv and finishes kvk',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onEndKVK(
     @Context() [interaction]: SlashCommandContext,
@@ -197,7 +230,7 @@ export class KvkCommands {
     name: 'batch-update-stats',
     description: 'Creates/Updates stats for a list of governors from a csv',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onBatchUpdateStats(
     @Context() [interaction]: SlashCommandContext,
@@ -218,7 +251,6 @@ export class KvkCommands {
     }
     const rows = await downloadAndSplitInRows(file.url);
     rows.forEach(async (row) => {
-      console.log(row);
       const [id, name, t4Kills, t5Kills, deadTroops] = row.split(',');
       let currentGovernor =
         await this.governorService.getGovernorByGovernorId(id);

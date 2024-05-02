@@ -1,12 +1,25 @@
 import {
   Column,
   Entity,
-  JoinColumn,
-  ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Governor } from './Governor';
+import { KVKRequirement } from './KVKRequirements';
+import { KVKStat } from './KVKStat';
+
+export const KVKTypes = [
+  'Tides of War',
+  'Strife of the Eight',
+  'Warriors Unbound',
+  'King of the Nile',
+  'Heroic Anthem',
+  'Siege of Orleans',
+  'Alliance Invictus',
+  'Storm of Stratagems',
+  'Desert Conquest',
+] as const;
+export type KVKType = (typeof KVKTypes)[number];
 
 @Entity()
 export class KVK {
@@ -16,31 +29,18 @@ export class KVK {
   @UpdateDateColumn()
   updated_at: Date; // Last updated date
 
-  @Column({ type: 'bigint', default: 0 })
-  matchMakingPower: number;
-
-  @Column({ type: 'bigint', default: 0 })
-  t4Kills: number;
-
-  @Column({ type: 'bigint', default: 0 })
-  t5Kills: number;
-
-  @Column({ type: 'bigint', default: 0 })
-  deadTroops: number;
-
-  @Column({ type: 'bigint', default: 0 })
-  powerLoss: number;
-
-  @Column('boolean')
-  activeKvk: boolean;
-
-  @Column({ type: 'bigint', default: 0 })
-  score: number;
+  @Column({ enum: KVKTypes, type: 'enum' })
+  type: KVKType;
 
   @Column({ type: 'date', nullable: true })
   endDate: string | null;
 
-  @ManyToOne(() => Governor, (governor) => governor.kvks)
-  @JoinColumn({ name: 'governorId', referencedColumnName: 'governorId' })
-  governor: Governor;
+  @Column('boolean')
+  active: boolean;
+
+  @OneToMany(() => KVKStat, (kvkStat) => kvkStat.kvk)
+  kvkStats: KVKStat[];
+
+  @OneToMany(() => KVKRequirement, (kvkRequirement) => kvkRequirement.kvk)
+  kvkRequirements: KVKRequirement[];
 }

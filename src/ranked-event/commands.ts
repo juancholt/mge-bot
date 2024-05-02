@@ -94,7 +94,7 @@ export class RankedEventCommands {
     name: 'create-ranked-event',
     description: 'Creates a new ranked event',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onCreate(
     @Context() [interaction]: SlashCommandContext,
@@ -245,7 +245,7 @@ export class RankedEventCommands {
     name: 'close-active-event',
     description: 'Close current event to stop receiving bids',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onCloseEvent(@Context() [interaction]: SlashCommandContext) {
     const currentActiveEvent =
@@ -293,7 +293,7 @@ export class RankedEventCommands {
   @SlashCommand({
     name: 'active-event-info',
     description: 'Gets current event to information',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onGetInfo(@Context() [interaction]: SlashCommandContext) {
     const currentActiveEvent =
@@ -375,7 +375,7 @@ export class RankedEventCommands {
   @SlashCommand({
     name: 'previous-event-info',
     description: 'Gets last event information',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onPreviousEventInfo(
     @Context() [interaction]: SlashCommandContext,
@@ -450,7 +450,7 @@ export class RankedEventCommands {
     name: 'refund-last-event',
     description: 'Refunds last event',
     defaultMemberPermissions: 'Administrator',
-    guilds: ['1111240948446416896', process.env.GUILD_ID],
+    guilds: ['1111240948446416896'],
   })
   public async onRefund(@Context() [interaction]: SlashCommandContext) {
     const lastActiveEvent = await this.rankedEventService.getLastRankedEvent();
